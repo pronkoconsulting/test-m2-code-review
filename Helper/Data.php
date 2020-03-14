@@ -158,6 +158,7 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
         $this->storeManager = $storeManager;
         $this->dataCollection = $dataCollectionFactory;
         $this->fileSystem = $filesystem;
+        $this->request = $request;
     }
 
     /**
@@ -232,7 +233,7 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
                     }
                 }
                 if (!$attributes) {
-                    $found = 1;
+                    $found = true;
                     break;
                 }
             }
