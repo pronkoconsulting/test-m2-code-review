@@ -1,5 +1,9 @@
 <?php
-
+/**
+ * Copyright © pronkocunsulting, Inc. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+namespace NameSpace\ModuleName\Helper;
 
 class Data extends \Vendor\MpAssignProduct\Helper\Data
 {
@@ -187,28 +191,20 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             $isSuccess = false;
         }
 
-
         $result['error'] = !$isSuccess;
         return $result;
     }
-
+    
+    /**
+     * Get Assign Product Collection
+     *
+     * @param int $productId
+     * @return array
+     */
     public function getAssignProductCollection($productId)
     {
         $collection = $this->_itemsCollection->create();
-        /*
-        $joinTable = $this->_resource->getTableName('marketplace_datafeedback');
-        $sql = 'mp.seller_id = main_table.seller_id';
-        $sql .= ' and mp.status = 1';
-        $fields = [];
-        $fields[] = 'status';
-        $fields[] = 'seller_id as mp_seller_id';
-        $fields[] = "sum(mp.feed_price+mp.feed_value+mp.feed_quality) as total_rating";
-        $fields[] = "count(mp.seller_id) as count";
-        $collection->getSelect()->joinLeft($joinTable.' as mp', $sql, $fields);
-        $field = 'sum(mp.feed_price+mp.feed_value+mp.feed_quality)/(count(mp.seller_id)*3)';
-        $collection->getSelect()->columns(['rating' => new \Zend_Db_Expr($field)]);
-        */
-
+        
         $joinTable = $this->_resource->getTableName('marketplace_userdata');
         $sql = 'mpud.seller_id = main_table.seller_id';
         $fields = [];
@@ -216,8 +212,6 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
         $fields[] = 'shop_title';
         $fields[] = 'logo_pic';
         $fields[] = 'is_seller';
-        //$collection->getSelect()->joinLeft($joinTable.' as mpud', $sql, $fields);
-        //$collection->getSelect()->group('main_table.seller_id')->where('mpud.is_seller = 1');
         $collection->addFieldToFilter("product_id", $productId);
         return $collection;
     }
@@ -317,7 +311,14 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
 
         return $result;
     }
-
+    
+    /**
+     * Get Additional Attribute Value
+     *
+     * @param array $assigned
+     * @param int $attributeId
+     * @return string[]
+     */
     public function getAdditionalAttributeValue($assigned, $attributeId) {
         if (!$assigned) {
             return '';
@@ -333,9 +334,17 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
                 $value = $key->getValue();
             }
         }
+        
         return $value;
     }
-
+    
+    /**
+     * Get Additional Attribute Raw Value
+     *
+     * @param array $assigned
+     * @param array $attributeId
+     * @return string[]
+     */
     public function getAdditionalAttributeValueRaw($assigned, $attribute) {
         if (!$assigned) {
             return '';
@@ -359,9 +368,17 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
                 }
             }
         }
+        
         return $value;
     }
-
+    
+     /**
+     * Get Allowed attributes
+     *
+     * @param \Magento\Catalog\Model\Product $product
+     * @return array
+     * @throws \Exception
+     */
     public function getAllowedAttributes($product)
     {
         $allowedAttributes = [];
@@ -397,7 +414,15 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
 
         return $allowedAttributes;
     }
-
+    
+    /**
+     * Save Additional attributes
+     *
+     * @param \Magento\Catalog\Model\Product $product
+     * @param array $dataInput
+     * @return array
+     * @throws \Exception
+     */
     public function saveAdditionalAttributes($model, $product, $dataInput) {
         $store_id = $this->_storeManager->getStore()->getStoreId();
         $attributes = $product->getTypeInstance(true)->getSetAttributes($product);
@@ -435,6 +460,13 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             }
         }
     }
+    
+    /**
+     * Upload Images
+     *
+     * @param int $assignId
+     * @param int $numberOfImages
+     */
     public function uploadImages($numberOfImages, $assignId)
     {
         if ($numberOfImages > 0) {
@@ -450,6 +482,13 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             }
         }
     }
+    
+    /**
+     * Get Description
+     *
+     * @param int $assignId
+     * @return string[]
+     */
     public function getDescription($assignId) {
         $store_id = $this->getStore()->getId();
         $desc = '';
@@ -474,9 +513,17 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
         if (!$desc) {
             $desc = $this->_items->create()->load($assignId)->getDescription();
         }
+        
         return $desc;
     }
-
+    
+    /**
+     * Check Product
+     *
+     * @param \Magento\Catalog\Model\Product $product
+     * @param int $isAdd [optional]
+     * @return array
+     */
     public function checkProduct($isAdd = 0)
     {
         $result = ['msg' => '', 'error' => 0];
@@ -513,6 +560,7 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             $result['msg'] = 'Product is your own product.';
             return $result;
         }
+        
         return $result;
     }
 }
