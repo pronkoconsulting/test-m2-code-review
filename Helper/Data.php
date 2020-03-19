@@ -343,8 +343,8 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             $assignId = $data['assign_id'];
             $assignData = $this->getAssignDataByAssignId($assignId);
             if (!$assignData->getId()) {
-                return return $result;
-            }            
+                return $result;
+            }
             $oldImage = $assignData->getImage();
             if ($oldImage != $image && $image != "") {
                 $assignProductData['image'] = $image;
@@ -392,11 +392,11 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
         $dataCollection = $this->_dataCollection->create()
             ->addFieldToFilter("type", $attributeId)
             ->addFieldToFilter("assign_id", $assigned->getId())
-            ->addFieldToFilter("store_view", $storeId);
-
-        if ($dataCollection->getSize()) {
-            $collection = $dataCollection->getFirstItem();
-            $value = $collection->getValue();
+            ->addFieldToFilter("store_view", $storeId)
+            ->setPageSize(1)
+            ->getFirstItem();
+        if ($dataCollection->getValue()) {
+            $value = $dataCollection->getValue();
         }
         return $value;
     }
@@ -609,7 +609,9 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             ->addFieldToFilter('assign_id', $assignId)
             ->addFieldToFilter('is_default', 1)
             ->addFieldToFilter('type', 2)
-            ->addFieldToFilter('store_view', $storeId);
+            ->addFieldToFilter('store_view', $storeId)
+            ->addFieldToFilter('value', ['neq' => ''])
+            ->setPageSize(1);
         if ($collection->getSize()) {
             $item = $collection->getFirstItem();
             $desc = $item->getValue();
@@ -617,7 +619,9 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             $collection = $this->_data->create()->getCollection()
                 ->addFieldToFilter('assign_id', $assignId)
                 ->addFieldToFilter('is_default', 1)
-                ->addFieldToFilter('type', 2);
+                ->addFieldToFilter('type', 2)
+                ->addFieldToFilter('value', ['neq' => ''])
+                ->setPageSize(1);
             if ($collection->getSize()) {
                 $item = $collection->getFirstItem();
                 $desc = $item->getValue();
