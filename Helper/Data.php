@@ -1,74 +1,125 @@
 <?php
+namespace Vendor\Module\Helper;
 
+use Magento\Catalog\Model\Product;
+use Magento\Catalog\Model\Product\Option;
+use Magento\Catalog\Model\ProductRepository;
+use Magento\CatalogInventory\Api\StockRegistryInterface;
+use Magento\Checkout\Model\Cart;
+use Magento\Customer\Model\CustomerFactory;
+use Magento\Customer\Model\Session;
+use Magento\Eav\Model\Entity\Attribute;
+use Magento\Framework\App\Filesystem\DirectoryList;
+use Magento\Framework\App\Helper\Context;
+use Magento\Framework\App\ResourceConnection;
+use Magento\Framework\Data\Form\FormKey;
+use Magento\Framework\Filesystem;
+use Magento\Framework\Filesystem\Driver\File;
+use Magento\Framework\Message\ManagerInterface;
+use Magento\Framework\Pricing\PriceCurrencyInterface;
+use Magento\Framework\Registry;
+use Magento\MediaStorage\Model\File\UploaderFactory;
+use Magento\Quote\Model\Quote\Item\OptionFactory;
+use Magento\Store\Model\StoreManagerInterface;
+use Vendor\AppointedAttributes\Helper\Validation;
+use Vendor\Marketplace\Model\ProductFactory;
+use Vendor\MpAssignProduct\Model\AssociatesFactory;
+use Vendor\MpAssignProduct\Model\DataFactory;
+use Vendor\MpAssignProduct\Model\ItemsFactory;
 
+/**
+ * Class Data
+ */
 class Data extends \Vendor\MpAssignProduct\Helper\Data
 {
     /**
-     * @var \Vendor\AppointedAttributes\Helper\Validation
+     * @var Validation
      */
-    protected $validationHelper;
-
-    protected $skipAttributes = ['price', 'quantity_and_stock_status'];
+    protected $_validationHelper;
 
     /**
-     * __construct
+     * Attributes to ignore
      *
-     * @param \Magento\Framework\App\Helper\Context $context
-     * @param \Magento\Store\Model\StoreManagerInterface $storeManager
-     * @param \Magento\Framework\Message\ManagerInterface $messageManager
-     * @param \Magento\Customer\Model\Session $customerSession
-     * @param \Magento\Framework\Filesystem $filesystem
-     * @param \Magento\Framework\Data\Form\FormKey $formKey
+     * @var array
+     */
+    protected $skipAttributes = ['price', 'quantity_and_stock_status'];
+    
+    /**
+     * @var ProductRepository 
+     */
+    protected $_productRepository;
+
+    /**
+     * Data construct
+     *
+     * @param Context $context
+     * @param StoreManagerInterface $storeManager
+     * @param ManagerInterface $messageManager
+     * @param Session $customerSession
+     * @param CustomerFactory $customer
+     * @param Filesystem $filesystem
+     * @param FormKey $formKey
      * @param \Magento\Framework\Pricing\Helper\Data $currency
-     * @param \Magento\Framework\App\ResourceConnection $resource
-     * @param \Magento\MediaStorage\Model\File\UploaderFactory $fileUploaderFactory
+     * @param ResourceConnection $resource
+     * @param UploaderFactory $fileUploaderFactory
      * @param \Magento\Catalog\Model\ProductFactory $productFactory
-     * @param \Magento\Checkout\Model\Cart $cart
-     * @param \Vendor\Marketplace\Model\ProductFactory $mpProductFactory
-     * @param \Vendor\MpAssignProduct\Model\ItemsFactory $itemsFactory
-     * @param \Vendor\MpAssignProduct\Model\AssociatesFactory $associatesFactory
+     * @param Cart $cart
+     * @param ProductFactory $mpProductFactory
+     * @param ItemsFactory $itemsFactory
+     * @param DataFactory $dataFactory
+     * @param AssociatesFactory $associatesFactory
+     * @param OptionFactory $quoteOption
      * @param CollectionFactory $mpProductCollectionFactory
      * @param SellerCollection $sellerCollectionFactory
      * @param ItemsCollection $itemsCollectionFactory
      * @param QuoteCollection $quoteCollectionFactory
+     * @param DataCollection $dataCollectionFactory
      * @param ProductCollection $productCollectionFactory
-     * @param \Magento\Framework\Registry $coreRegistry
-     * @param \Magento\CatalogInventory\Api\StockRegistryInterface $stockRegistry
+     * @param Registry $coreRegistry
+     * @param StockRegistryInterface $stockRegistry
+     * @param TransportBuilder $transportBuilder
+     * @param StateInterface $inlineTranslation
+     * @param PriceCurrencyInterface $priceCurrency
+     * @param File $fileDriver
+     * @param ConfigurableCollection $configurableCollection
+     * @param Option $customOptions
      * @param Validation $validation
+     * @param ProductRepository $productRepository
      */
     public function __construct(
-        \Magento\Framework\App\Helper\Context $context,
-        \Magento\Store\Model\StoreManagerInterface $storeManager,
-        \Magento\Framework\Message\ManagerInterface $messageManager,
-        \Magento\Customer\Model\Session $customerSession,
-        \Magento\Customer\Model\CustomerFactory $customer,
-        \Magento\Framework\Filesystem $filesystem,
-        \Magento\Framework\Data\Form\FormKey $formKey,
+        Context $context,
+        StoreManagerInterface $storeManager,
+        ManagerInterface $messageManager,
+        Session $customerSession,
+        CustomerFactory $customer,
+        Filesystem $filesystem,
+        FormKey $formKey,
         \Magento\Framework\Pricing\Helper\Data $currency,
-        \Magento\Framework\App\ResourceConnection $resource,
-        \Magento\MediaStorage\Model\File\UploaderFactory $fileUploaderFactory,
+        ResourceConnection $resource,
+        UploaderFactory $fileUploaderFactory,
         \Magento\Catalog\Model\ProductFactory $productFactory,
-        \Magento\Checkout\Model\Cart $cart,
-        \Vendor\Marketplace\Model\ProductFactory $mpProductFactory,
-        \Vendor\MpAssignProduct\Model\ItemsFactory $itemsFactory,
-        \Vendor\MpAssignProduct\Model\DataFactory $dataFactory,
-        \Vendor\MpAssignProduct\Model\AssociatesFactory $associatesFactory,
-        \Magento\Quote\Model\Quote\Item\OptionFactory $quoteOption,
+        Cart $cart,
+        ProductFactory $mpProductFactory,
+        ItemsFactory $itemsFactory,
+        DataFactory $dataFactory,
+        AssociatesFactory $associatesFactory,
+        OptionFactory $quoteOption,
         CollectionFactory $mpProductCollectionFactory,
         SellerCollection $sellerCollectionFactory,
         ItemsCollection $itemsCollectionFactory,
         QuoteCollection $quoteCollectionFactory,
         DataCollection $dataCollectionFactory,
         ProductCollection $productCollectionFactory,
-        \Magento\Framework\Registry $coreRegistry,
-        \Magento\CatalogInventory\Api\StockRegistryInterface $stockRegistry,
+        Registry $coreRegistry,
+        StockRegistryInterface $stockRegistry,
         TransportBuilder $transportBuilder,
         StateInterface $inlineTranslation,
-        \Magento\Framework\Pricing\PriceCurrencyInterface $priceCurrency,
-        \Magento\Framework\Filesystem\Driver\File $fileDriver,
+        PriceCurrencyInterface $priceCurrency,
+        File $fileDriver,
         ConfigurableCollection $configurableCollection,
-        \Magento\Catalog\Model\Product\Option $customOptions,
-        Validation $validation
+        Option $customOptions,
+        Validation $validation,
+        ProductRepository $productRepository
     ) {
         parent::__construct(
             $context,
@@ -103,13 +154,15 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             $configurableCollection,
             $customOptions
         );
-        $this->validationHelper = $validation;
+        $this->_validationHelper = $validation;
+        $this->_productRepository=$productRepository;
     }
 
     /**
-     * Validate Data
+     * function definition
      *
-     * @param array $data
+     * @param $data
+     * @param $type
      * @return array
      */
     public function validateData($data, $type)
@@ -118,10 +171,10 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             return $this->validateConfigData($data);
         }
 
-        $rules = $this->validationHelper->getAttributeRules();
+        $rules = $this->_validationHelper->getAttributeRules();
         $result = [];
         $isSuccess = true;
-        $requiredFields = $this->validationHelper->getRequiredFields();
+        $requiredFields = $this->_validationHelper->getRequiredFields();
         $compareResult = array_diff_key($requiredFields, $data);
 
         if (count($compareResult)) {
@@ -139,11 +192,10 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
                     foreach ($ruleParts as $rulePart) {
                         $rule .= $rule
                             ? ucfirst($rulePart)
-                            : $rulePart
-                        ;
+                            : $rulePart;
                     }
-                    if (is_callable([$this->validationHelper, $rule])) {
-                        $validationStatus = $this->validationHelper->$rule($value);
+                    if (is_callable([$this->_validationHelper, $rule])) {
+                        $validationStatus = $this->_validationHelper->$rule($value);
                         $result[$field][$ruleCode] = $validationStatus;
                         if (!$validationStatus) {
                             $isSuccess = false;
@@ -153,6 +205,24 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             }
         }
 
+        if ($this->isDuplicateProduct($data)) {
+            $result['error'] = true;
+            $result['msg'] = 'You Already have same product with same attributes.';
+            $isSuccess = false;
+        }
+
+        $result['error'] = !$isSuccess;
+        return $result;
+    }
+
+    /**
+     * function definition
+     *
+     * @param $data
+     * @return int
+     */
+    public function isDuplicateProduct($data)
+    {
         $productId = $data['product_id'];
         $assignId = 0;
         if (isset($data['assign_id'])) {
@@ -181,43 +251,85 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
                 }
             }
         }
-        if ($found) {
-            $result['error'] = true;
-            $result['msg'] =  'You Already have same product with same attributes.';
-            $isSuccess = false;
-        }
-
-
-        $result['error'] = !$isSuccess;
-        return $result;
+        return $found;
     }
 
+    /**
+     * function definition
+     *
+     * @param $product
+     * @return array
+     */
+    public function getAllowedAttributes($productId)
+    {
+        $allowedAttributes = [];
+        $product=$this->_productRepository->getById($productId);
+        $attributes = $product->getTypeInstance(true)->getSetAttributes($product);
+        /** @var Attribute $attribute */
+        foreach ($attributes as $attribute) {
+            $attrCode = $attribute->getAttributeCode();
+            try {
+                $backendAttribute = $attribute->getBackend()->getAttribute();
+                if ($backendAttribute->getAllowSellersToSet() && !in_array($attrCode, $this->skipAttributes)) {
+                    $frontendInput = $attribute->getFrontendInput();
+                    $allowedAttributes[$attrCode]['input_type'] = $frontendInput;
+                    $allowedAttributes[$attrCode]['is_required'] = $attribute->getIsRequired();
+                    $allowedAttributes[$attrCode]['id'] = $attribute->getId();
+                    $allowedAttributes[$attrCode]['code'] = $attrCode;
+                    $allowedAttributes[$attrCode]['title'] = $attribute->getFrontendLabel();
+                    $allowedAttributes[$attrCode]['label'] = __($attribute->getFrontendLabel());
+                    switch ($frontendInput) {
+                        case 'text':
+                            break;
+                        case 'select':
+                            $attributeOptions = $attribute->getSource()->getAllOptions();
+                            $allowedAttributes[$attrCode]['options'] = $attributeOptions;
+                            break;
+                    }
+                }
+            } catch (Exception $e) {
+                continue;
+            }
+        }
+
+        return $allowedAttributes;
+    }
+
+    /**
+     * function definition
+     *
+     * @param $assigned
+     * @param $attributeId
+     * @return bool
+     */
+    public function getAdditionalAttributeValue($assigned, $attributeId)
+    {
+        if (!$assigned) {
+            return false;
+        }
+        $value = false;
+        $storeId = $this->_storeManager->getStore()->getStoreId();
+        $oldBase = $this->_dataCollection->create()
+            ->addFieldToFilter("type", $attributeId)
+            ->addFieldToFilter("assign_id", $assigned->getId())
+            ->addFieldToFilter("store_view", $storeId);
+        if ($oldBase->getSize()) {
+            foreach ($oldBase as $key) {
+                $value = $key->getValue();
+            }
+        }
+        return $value;
+    }
+
+    /**
+     * function definition
+     *
+     * @param $productId
+     * @return mixed
+     */
     public function getAssignProductCollection($productId)
     {
         $collection = $this->_itemsCollection->create();
-        /*
-        $joinTable = $this->_resource->getTableName('marketplace_datafeedback');
-        $sql = 'mp.seller_id = main_table.seller_id';
-        $sql .= ' and mp.status = 1';
-        $fields = [];
-        $fields[] = 'status';
-        $fields[] = 'seller_id as mp_seller_id';
-        $fields[] = "sum(mp.feed_price+mp.feed_value+mp.feed_quality) as total_rating";
-        $fields[] = "count(mp.seller_id) as count";
-        $collection->getSelect()->joinLeft($joinTable.' as mp', $sql, $fields);
-        $field = 'sum(mp.feed_price+mp.feed_value+mp.feed_quality)/(count(mp.seller_id)*3)';
-        $collection->getSelect()->columns(['rating' => new \Zend_Db_Expr($field)]);
-        */
-
-        $joinTable = $this->_resource->getTableName('marketplace_userdata');
-        $sql = 'mpud.seller_id = main_table.seller_id';
-        $fields = [];
-        $fields[] = 'shop_url';
-        $fields[] = 'shop_title';
-        $fields[] = 'logo_pic';
-        $fields[] = 'is_seller';
-        //$collection->getSelect()->joinLeft($joinTable.' as mpud', $sql, $fields);
-        //$collection->getSelect()->group('main_table.seller_id')->where('mpud.is_seller = 1');
         $collection->addFieldToFilter("product_id", $productId);
         return $collection;
     }
@@ -228,7 +340,7 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
      * @param array $data
      * @param int $flag [optional]
      * @return array
-     * @throws \Exception
+     * @throws Exception
      */
     public function assignProduct($data, $flag = 0)
     {
@@ -242,10 +354,10 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             'status' => 1,
             'type' => 0
         ];
-        $productId = (int) $data['product_id'];
-        $condition = (int) $data['product_condition'];
-        $qty = (int) $data['quantity_and_stock_status'];
-        $price = (float) $data['price'];
+        $productId = (int)$data['product_id'];
+        $condition = (int)$data['product_condition'];
+        $qty = (int)$data['quantity_and_stock_status'];
+        $price = (float)$data['price'];
         $description = $data['description'];
         $image = $data['image'];
         $ownerId = $this->getSellerIdByProductId($productId);
@@ -281,7 +393,6 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
         if ($flag == 1) {
             $assignId = $data['assign_id'];
             $assignData = $this->getAssignDataByAssignId($assignId);
-            $oldPrice = $assignData->getPrice();
             if ($assignData->getId() > 0) {
                 $oldImage = $assignData->getImage();
                 if ($oldImage != $image && $image != "") {
@@ -318,25 +429,61 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
         return $result;
     }
 
-    public function getAdditionalAttributeValue($assigned, $attributeId) {
-        if (!$assigned) {
-            return '';
-        }
-        $value = '';
-        $store_id = $this->_storeManager->getStore()->getStoreId();
-        $old_base = $this->_dataCollection->create()
-            ->addFieldToFilter("type", $attributeId)
-            ->addFieldToFilter("assign_id", $assigned->getId())
-            ->addFieldToFilter("store_view", $store_id);
-        if ($old_base->getSize()) {
-            foreach($old_base as $key) {
-                $value = $key->getValue();
+    /**
+     * function definition
+     *
+     * @param $model
+     * @param $product
+     * @param $dataInput
+     */
+    public function saveAdditionalAttributes($model, $product, $dataInput)
+    {
+        $storeId = $this->_storeManager->getStore()->getStoreId();
+        $attributes = $product->getTypeInstance(true)->getSetAttributes($product);
+        /** @var Attribute $attribute */
+        foreach ($attributes as $attribute) {
+            $attrCode = $attribute->getAttributeCode();
+            try {
+                $backendAttribute = $attribute->getBackend()->getAttribute();
+                if ($backendAttribute->getAllowSellersToSet()) {
+                    $value = '';
+                    if (isset($dataInput[$attrCode])) {
+                        $value = $dataInput[$attrCode];
+                    }
+                    $old_base = $this->_dataCollection->create()
+                        ->addFieldToFilter("type", $attribute->getId())
+                        ->addFieldToFilter("assign_id", $model->getId())
+                        ->addFieldToFilter("store_view", $storeId);
+                    if ($old_base->getSize()) {
+                        foreach ($old_base as $key) {
+                            $key->setValue($value)->save();
+                        }
+                    } else {
+                        $data = [];
+                        $data['type'] = $attribute->getId();
+                        $data['assign_id'] = $model->getId();
+                        $data['value'] = $value;
+                        $data['is_default'] = 0;
+                        $data['status'] = 1;
+                        $data['store_view'] = $storeId;
+                        $this->_data->create()->setData($data)->save();
+                    }
+                }
+            } catch (Exception $e) {
+                continue;
             }
         }
-        return $value;
     }
 
-    public function getAdditionalAttributeValueRaw($assigned, $attribute) {
+    /**
+     * function definition
+     *
+     * @param $assigned
+     * @param $attribute
+     * @return string
+     */
+    public function getAdditionalAttributeValueRaw($assigned, $attribute)
+    {
         if (!$assigned) {
             return '';
         }
@@ -347,7 +494,7 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             ->addFieldToFilter("assign_id", $assigned->getId())
             ->addFieldToFilter("store_view", $store_id);
         if ($old_base->getSize()) {
-            foreach($old_base as $key) {
+            foreach ($old_base as $key) {
                 $value = $key->getValue();
             }
         }
@@ -362,84 +509,17 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
         return $value;
     }
 
-    public function getAllowedAttributes($product)
-    {
-        $allowedAttributes = [];
-        /** @var \Magento\Catalog\Model\Product $product */
-        $product = $product->load($product->getId());
-        $attributes = $product->getTypeInstance(true)->getSetAttributes($product);
-        /** @var \Magento\Eav\Model\Entity\Attribute $attribute */
-        foreach ($attributes as $attribute) {
-            $attrCode = $attribute->getAttributeCode();
-            try {
-                $backendAttribute = $attribute->getBackend()->getAttribute();
-                if ($backendAttribute->getAllowSellersToSet() && !in_array($attrCode, $this->skipAttributes)) {
-                    $frontendInput = $attribute->getFrontendInput();
-                    $allowedAttributes[$attrCode]['input_type'] = $frontendInput;
-                    $allowedAttributes[$attrCode]['is_required'] = $attribute->getIsRequired();
-                    $allowedAttributes[$attrCode]['id'] = $attribute->getId();
-                    $allowedAttributes[$attrCode]['code'] = $attrCode;
-                    $allowedAttributes[$attrCode]['title'] = $attribute->getFrontendLabel();
-                    $allowedAttributes[$attrCode]['label'] = __($attribute->getFrontendLabel());
-                    switch ($frontendInput) {
-                        case 'text':
-                            break;
-                        case 'select':
-                            $attributeOptions = $attribute->getSource()->getAllOptions();
-                            $allowedAttributes[$attrCode]['options'] = $attributeOptions;
-                            break;
-                    }
-                }
-            } catch (\Exception $e) {
-                continue;
-            }
-        }
-
-        return $allowedAttributes;
-    }
-
-    public function saveAdditionalAttributes($model, $product, $dataInput) {
-        $store_id = $this->_storeManager->getStore()->getStoreId();
-        $attributes = $product->getTypeInstance(true)->getSetAttributes($product);
-        /** @var \Magento\Eav\Model\Entity\Attribute $attribute */
-        foreach ($attributes as $attribute) {
-            $attrCode = $attribute->getAttributeCode();
-            try {
-                $backendAttribute = $attribute->getBackend()->getAttribute();
-                if ($backendAttribute->getAllowSellersToSet()) {
-                    $value = '';
-                    if (isset($dataInput[$attrCode])) {
-                        $value = $dataInput[$attrCode];
-                    }
-                    $old_base = $this->_dataCollection->create()
-                        ->addFieldToFilter("type", $attribute->getId())
-                        ->addFieldToFilter("assign_id", $model->getId())
-                        ->addFieldToFilter("store_view", $store_id);
-                    if ($old_base->getSize()) {
-                        foreach($old_base as $key) {
-                            $key->setValue($value)->save();
-                        }
-                    } else {
-                        $data = [];
-                        $data['type'] = $attribute->getId();
-                        $data['assign_id'] = $model->getId();
-                        $data['value'] = $value;
-                        $data['is_default'] = 0;
-                        $data['status'] = 1;
-                        $data['store_view'] = $store_id;
-                        $this->_data->create()->setData($data)->save();
-                    }
-                }
-            } catch (\Exception $e) {
-                continue;
-            }
-        }
-    }
+    /**
+     * function definition
+     *
+     * @param $numberOfImages
+     * @param $assignId
+     */
     public function uploadImages($numberOfImages, $assignId)
     {
         if ($numberOfImages > 0) {
             $uploadPath = $this->_filesystem
-                ->getDirectoryRead(\Magento\Framework\App\Filesystem\DirectoryList::MEDIA)
+                ->getDirectoryRead(DirectoryList::MEDIA)
                 ->getAbsolutePath('marketplace/assignproduct/product/');
             $uploadPath .= $assignId;
             $count = 0;
@@ -450,38 +530,29 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             }
         }
     }
-    public function getDescription($assignId) {
-        $store_id = $this->getStore()->getId();
-        $desc = '';
-        $collection = $this->_data->create()->getCollection()
-            ->addFieldToFilter('assign_id', $assignId)
-            ->addFieldToFilter('is_default', 1)
-            ->addFieldToFilter('type', 2)
-            ->addFieldToFilter('store_view', $store_id);
-        if ($collection->getSize()) {
-            foreach ($collection as $key) {
-                $desc = $key->getValue();
-            }
-        } else {
-            $collection = $this->_data->create()->getCollection()
-                ->addFieldToFilter('assign_id', $assignId)
-                ->addFieldToFilter('is_default', 1)
-                ->addFieldToFilter('type', 2);
-            foreach ($collection as $key) {
-                $desc = $key->getValue(); break;
-            }
-        }
-        if (!$desc) {
-            $desc = $this->_items->create()->load($assignId)->getDescription();
-        }
-        return $desc;
+
+    /**
+     * function definition
+     *
+     * @param $assignId
+     * @return mixed
+     */
+    public function getDescription($assignId)
+    {
+        return $this->_items->create()->load($assignId)->getDescription();
     }
 
-    public function checkProduct($isAdd = 0)
+    /**
+     * function definition
+     *
+     * @param $assignId
+     * @param int $isAdd
+     * @return array
+     */
+    public function checkProduct($assignId, $isAdd = 0)
     {
         $result = ['msg' => '', 'error' => 0];
-        $assignId = (int) $this->_request->getParam('id');
-        if ($assignId == 0) {
+        if (!$assignId) {
             $result['error'] = 1;
             $result['msg'] = 'Invalid request.';
             return $result;
@@ -493,7 +564,7 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             $productId = $assignData->getProductId();
         }
         $product = $this->getProduct($productId);
-        if ($product->getId() <= 0) {
+        if (!$product) {
             $result['error'] = 1;
             $result['msg'] = 'Product does not exist.';
             return $result;
