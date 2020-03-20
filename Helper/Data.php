@@ -484,6 +484,9 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
     {
         $storeId = $this->_storeManager->getStore()->getStoreId();
         $attributes = $product->getTypeInstance(true)->getSetAttributes($product);
+        $insertData = [];
+        $dataTable = $this->_dataCollection->create()->getMainTable();
+
         /**
          * @var \Magento\Eav\Model\Entity\Attribute $attribute
          */
@@ -500,7 +503,6 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
                         ->addFieldToFilter("type", $attribute->getId())
                         ->addFieldToFilter("assign_id", $model->getId())
                         ->addFieldToFilter("store_view", $storeId);
-                    $dataTable = $dataCollection->getMainTable();
                     if ($dataCollection->getSize()) {
                         $columnData = ['value' => $value];
                         $where = [
@@ -517,12 +519,19 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
                         $data['is_default'] = 0;
                         $data['status'] = 1;
                         $data['store_view'] = $storeId;
-                        $this->insertData($dataTable, $data);
+                        $insertData[] = $data;
                     }
                 }
             } catch (\Exception $e) {
                 continue;
             }
+        }
+
+        /**
+         * Insert multiple records if record found
+         */
+        if (count($insertData)) {
+            $this->insertData($dataTable, $insertData);
         }
     }
 
@@ -567,7 +576,7 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
         $connection = $this->getConnection();
         try {
             $connection->beginTransaction();
-            $connection->insert($tableName, $columnData);
+            $connection->insertMultiple($tableName, $columnData);
             $connection->commit();
         } catch (\Exception $e) {
             $connection->rollBack();
@@ -605,7 +614,7 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
     {
         $storeId = $this->getStore()->getId();
         $desc = '';
-        $collection = $this->_data->create()->getCollection()
+        $collection = $this->_dataCollection->create()
             ->addFieldToFilter('assign_id', $assignId)
             ->addFieldToFilter('is_default', 1)
             ->addFieldToFilter('type', 2)
@@ -616,7 +625,7 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
             $item = $collection->getFirstItem();
             $desc = $item->getValue();
         } else {
-            $collection = $this->_data->create()->getCollection()
+            $collection = $this->_dataCollection->create()
                 ->addFieldToFilter('assign_id', $assignId)
                 ->addFieldToFilter('is_default', 1)
                 ->addFieldToFilter('type', 2)
