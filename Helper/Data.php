@@ -1,4 +1,11 @@
 <?php
+/**
+ * Data Helper
+ *
+ * @copyright Copyright © 2020 Manuprasad. All rights reserved.
+ * @author    prasadmanubs@gmail.com
+ */
+
 namespace Vendor\Module\Helper;
 
 use Magento\Catalog\Model\Product;
@@ -43,9 +50,9 @@ class Data extends \Vendor\MpAssignProduct\Helper\Data
      * @var array
      */
     protected $skipAttributes = ['price', 'quantity_and_stock_status'];
-    
+
     /**
-     * @var ProductRepository 
+     * @var ProductRepository
      */
     protected $_productRepository;
 
